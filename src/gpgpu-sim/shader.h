@@ -1824,6 +1824,12 @@ class shader_core_stats : public shader_core_stats_pod {
     return m_shader_warp_slot_issue_distro;
   }
 
+  //getter for num_shader()
+  unsigned get_num_shader()
+  {
+    return m_config->num_shader();
+  }
+
  private:
   const shader_core_config *m_config;
 
@@ -1875,6 +1881,9 @@ class shader_core_mem_fetch_allocator : public mem_fetch_allocator {
 class shader_core_ctx : public core_t {
  public:
   // creator:
+    //getter for sim_cycles
+  unsigned long long get_sim_cycles(void);
+
   shader_core_ctx(class gpgpu_sim *gpu, class simt_core_cluster *cluster,
                   unsigned shader_id, unsigned tpc_id,
                   const shader_core_config *config,
@@ -2345,6 +2354,8 @@ class simt_core_cluster {
   float get_current_occupancy(unsigned long long &active,
                               unsigned long long &total) const;
   virtual void create_shader_core_ctx() = 0;
+
+
 
  protected:
   unsigned m_cluster_id;

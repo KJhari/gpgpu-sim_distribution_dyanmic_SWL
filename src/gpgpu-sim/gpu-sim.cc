@@ -656,6 +656,10 @@ void gpgpu_sim_config::reg_options(option_parser_t opp) {
                          &(gpgpu_ctx->device_runtime->g_TB_launch_latency),
                          "thread block launch latency in cycles. Default: 0",
                          "0");
+
+  option_parser_register(opp, "-gpgpu_dynamic_swl", OPT_BOOL,
+                         &gpgpu_dynamic_swl,
+                         "Turn on dynamic swl (1=On, 0=Off)", "0");
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1413,6 +1417,12 @@ void gpgpu_sim::gpu_print_stat() {
 unsigned gpgpu_sim::threads_per_core() const {
   return m_shader_config->n_thread_per_shader;
 }
+
+unsigned long long shader_core_ctx::get_sim_cycles(void)
+ {
+    return m_cluster->get_gpu()->gpu_sim_cycle;
+    // return m_cluster->get_gpu()->gpu_sim_cycle
+  }
 
 void shader_core_ctx::mem_instruction_stats(const warp_inst_t &inst) {
   unsigned active_count = inst.active_count();
