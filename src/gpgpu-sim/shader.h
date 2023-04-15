@@ -355,6 +355,8 @@ class scheduler_unit {  // this can be copied freely, so can be used in std
     m_last_supervised_issued = m_supervised_warps.end();
   }
 
+  
+
   // The core scheduler cycle method is meant to be common between
   // all the derived schedulers.  The scheduler's behaviour can be
   // modified by changing the contents of the m_next_cycle_prioritized_warps
@@ -552,7 +554,14 @@ class swl_scheduler : public scheduler_unit {
   virtual void order_warps();
   virtual void done_adding_supervised_warps() {
     m_last_supervised_issued = m_supervised_warps.begin();
+  
   }
+
+  virtual int search_x_algorithm(shader_core_stats *stats, shader_core_ctx *shader,
+                       unsigned j);
+
+  //setter to m_num_warps_to_limit
+  virtual void set_num_warps_to_limit(unsigned x);
 
  protected:
   scheduler_prioritization_type m_prioritization;
@@ -1883,6 +1892,8 @@ class shader_core_ctx : public core_t {
   // creator:
     //getter for sim_cycles
   unsigned long long get_sim_cycles(void);
+  //getter for gpu-dynamic_swl flag
+  unsigned get_dynamic_swl_flag(void);
 
   shader_core_ctx(class gpgpu_sim *gpu, class simt_core_cluster *cluster,
                   unsigned shader_id, unsigned tpc_id,

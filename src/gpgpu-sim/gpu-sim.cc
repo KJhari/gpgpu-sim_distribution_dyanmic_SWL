@@ -1418,11 +1418,7 @@ unsigned gpgpu_sim::threads_per_core() const {
   return m_shader_config->n_thread_per_shader;
 }
 
-unsigned long long shader_core_ctx::get_sim_cycles(void)
- {
-    return m_cluster->get_gpu()->gpu_sim_cycle;
-    // return m_cluster->get_gpu()->gpu_sim_cycle
-  }
+
 
 void shader_core_ctx::mem_instruction_stats(const warp_inst_t &inst) {
   unsigned active_count = inst.active_count();

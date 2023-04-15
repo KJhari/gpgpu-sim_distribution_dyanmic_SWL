@@ -1127,6 +1127,7 @@ void scheduler_unit::order_by_priority(
 }
 
 void scheduler_unit::cycle() {
+  
   SCHED_DPRINTF("scheduler_unit::cycle()\n");
   bool valid_inst =
       false;  // there was one warp with a valid instruction to issue (didn't
@@ -1534,14 +1535,28 @@ void two_level_active_scheduler::order_warps() {
   assert(num_promoted == num_demoted);
 }
 
-int search_x_algorithm(shader_core_stats *stats, shader_core_ctx *shader,
+unsigned long long shader_core_ctx::get_sim_cycles(void) {
+  return m_cluster->get_gpu()->gpu_sim_cycle;
+}
+
+unsigned shader_core_ctx::get_dynamic_swl_flag(void) {
+  
+  return m_cluster->get_gpu()->is_dynamic_swl_enabled();
+}
+
+void swl_scheduler::set_num_warps_to_limit(unsigned x)
+  {
+    m_num_warps_to_limit = x;
+  }
+
+int swl_scheduler::search_x_algorithm(shader_core_stats *stats, shader_core_ctx *shader,
                        unsigned j) {
   int x_values[] = {1, 2, 4, 8, 16, 24, 32, 48};
-  double ipc = 0;
+  double  ipc = 0;
   double best_ipc = 0;
   int best_x = 1;
   int prev_x = 0;
-  unsigned long long total_ins = 0, total_cycle = 0;
+  unsigned long long total_ins, total_cycle;
 
   // printf( "gpu total sim cycle outside 4 loop= %llu\n",
   // g_gpu->gpu_sim_cycle);
@@ -1560,21 +1575,25 @@ int search_x_algorithm(shader_core_stats *stats, shader_core_ctx *shader,
     printf("total cycle count for SM j:%llu = %llu\n", j, total_cycle);
 
     if (total_cycle != 0) {
-      ipc = total_ins / total_cycle;
+      ipc = static_cast<double>(total_ins) / static_cast<double>(total_cycle);
       // ipc = ipc/m_config->num_shader();
-      printf("total IPC cont= %lld\n", ipc);
+      printf("total IPC count for i:%d compared to best ipc:%lf = %lf\n", i,best_ipc,ipc);
     }
-    printf("total IPC cont= %lld\n", ipc);
+    // printf("total IPC cont= %lld\n", ipc);
 
     if (ipc > best_ipc) {
+      printf("ipc( %lf ) > best ipc (%lf)",ipc,best_ipc);
       best_ipc = ipc;
       best_x = x_values[i];
     }
     if (ipc < best_ipc) {
+      printf("ipc( %lf ) < best ipc (%lf)",ipc,best_ipc);
       best_x = prev_x;
+      printf("prev x =%d ",prev_x);
       break;
     }
     prev_x = x_values[i];
+
   }
 
   return best_x;
@@ -1592,34 +1611,39 @@ swl_scheduler::swl_scheduler(shader_core_stats *stats, shader_core_ctx *shader,
                      sfu_out, int_out, tensor_core_out, spec_cores_out, mem_out,
                      id) {
   unsigned m_prioritization_readin;
-  int ret = 2;
-  if (1) {
-    // insert the cycle for loop
-    if (shader->get_sim_cycles()%2000==0) {
-      // calling the search algorithm for each SM
-      for (unsigned i = 0; i < stats->get_num_shader(); i++) {
-        int x = search_x_algorithm(stats, shader, i);
-        fprintf(stdout, "SWL 'x' value selected for each i=%d = %d\n", i, x);
-        // printf( "SWL 'x' value selected = %d\n", x);
-        m_num_warps_to_limit = x;
-        m_prioritization_readin = 2;
-      }
-    }
+  if (shader->get_dynamic_swl_flag()) {
+    m_prioritization_readin = 2;
+    m_prioritization = (scheduler_prioritization_type)m_prioritization_readin;
 
   } else {
-    ret = sscanf(config_string, "warp_limiting:%d:%d", &m_prioritization_readin,
-                 &m_num_warps_to_limit);
+    int ret = sscanf(config_string, "warp_limiting:%d:%d",
+                     &m_prioritization_readin, &m_num_warps_to_limit);
+
+    printf("m_prioritization_readin = %d\n", m_prioritization_readin);
+    assert(2 == ret);
+    m_prioritization = (scheduler_prioritization_type)m_prioritization_readin;
+
+    assert(m_num_warps_to_limit <= shader->get_config()->max_warps_per_shader);
   }
-  printf("m_prioritization_readin = %d\n", m_prioritization_readin);
-  assert(2 == ret);
-  m_prioritization = (scheduler_prioritization_type)m_prioritization_readin;
   // Currently only GTO is implemented
   assert(m_prioritization == SCHEDULER_PRIORITIZATION_GTO);
-
-  assert(m_num_warps_to_limit <= shader->get_config()->max_warps_per_shader);
 }
 
 void swl_scheduler::order_warps() {
+
+  
+    if (scheduler_unit::m_shader->get_sim_cycles()%20000==0) {
+      // calling the search algorithm for each SM
+      for (unsigned i = 0; i < scheduler_unit::m_stats->get_num_shader(); i++) {
+        int x = search_x_algorithm(scheduler_unit::m_stats, scheduler_unit::m_shader, i);
+        fprintf(stdout, "SWL 'x' value selected for each i=%d = %d\n", i, x);
+        // printf( "SWL 'x' value selected = %d\n", x);
+        // m_num_warps_to_limit = x;
+        set_num_warps_to_limit(x);
+      }
+    }
+
+
   if (SCHEDULER_PRIORITIZATION_GTO == m_prioritization) {
     order_by_priority(m_next_cycle_prioritized_warps, m_supervised_warps,
                       m_last_supervised_issued,
@@ -3417,11 +3441,13 @@ void shader_core_config::set_pipeline_latency() {
 }
 
 void shader_core_ctx::cycle() {
+
+
   if (!isactive() && get_not_completed() == 0) return;
 
   m_stats->shader_cycles[m_sid]++;
   printf("inside shader:%lld,%d", m_stats->shader_cycles[m_sid], m_sid);
-      writeback();
+  writeback();
   execute();
   read_operands();
   issue();

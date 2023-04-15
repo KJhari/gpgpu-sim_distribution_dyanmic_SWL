@@ -372,7 +372,6 @@ class gpgpu_sim_config : public power_config,
 
   bool flush_l1() const { return gpgpu_flush_l1_cache; }
 
-
  private:
   void init_clock_domains(void);
 
@@ -410,8 +409,8 @@ class gpgpu_sim_config : public power_config,
   char *g_visualizer_filename;
   int g_visualizer_zlevel;
 
-//dynamic swl enable flag
-  bool gpgpu_dynamic_swl; 
+  // dynamic swl enable flag
+  bool gpgpu_dynamic_swl;
 
   // statistics collection
   int gpu_stat_sample_freq;
@@ -506,8 +505,13 @@ class gpgpu_sim : public gpgpu_t {
            (m_config.gpu_max_completed_cta_opt &&
             (gpu_completed_cta >= m_config.gpu_max_completed_cta_opt));
   }
-  int is_dynamic_swl_enabled(){ printf("dynamic flag = %d\n", m_config.gpgpu_dynamic_swl);
-  return m_config.gpgpu_dynamic_swl;}
+  
+  int is_dynamic_swl_enabled(){ 
+    
+    printf("dynamic flag = %d\n", m_config.gpgpu_dynamic_swl);
+     return m_config.gpgpu_dynamic_swl;
+  }
+
   void print_stats();
   void update_stats();
   void deadlock_check();
